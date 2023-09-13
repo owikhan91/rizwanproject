@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import { CategoryService, ModelService, ProductService, AppService } from '@services/index'
-
-
+import { from, of } from 'rxjs';
+import { map, mergeMap} from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
 @Component({
   selector: 'bs-navbar',
   templateUrl: './bs-navbar.component.html',
@@ -15,6 +16,7 @@ export class BsNavbarComponent {
   constructor(
     private modelService: ModelService,
     private appService: AppService,
+    private http: HttpClient
     ) { }
 
     ngOnInit(){
@@ -26,15 +28,29 @@ export class BsNavbarComponent {
       let url = 'products/categories';
       this.appService.getService(url).subscribe(res => {
         this.allCategories = res;
-        console.log('this.allCategories', this.allCategories);
-        // for (var i = 0; i < this.allCategories.length; i++) {
-        //   this.allCategories[i] = this.allCategories[i].charAt(0).toUpperCase() + this.allCategories[i].slice(1);
-        // }
-        for (let i = 0; i<this.allCategories.length; i++) {
-          let result = this.getProductsByCategory(this.allCategories[i]);
-          this.allProductsByCategory.push(result);
-          console.log('this.result',result)
-        }  
+
+        let test :any=[];
+        of(...this.allCategories)        //outer observable
+        .pipe(
+          mergeMap(item => {            
+            test.push(item);
+            const url = 'https://dummyjson.com/products/category/'+item;
+            return this.http.get<any>(url)       //inner observable   
+          })
+        )
+        .subscribe(data => {
+          for(let i = 0; i<test.length;i++){
+            if( test[i] === data.products[0].category ){
+              this.allProductsByCategory.push(
+                {
+                  'category':test[i],
+                  'products':data.products
+                }
+              )
+            }
+          }
+          console.log(this.allProductsByCategory)
+        })
       })
     }
 
@@ -42,17 +58,16 @@ export class BsNavbarComponent {
     let url = 'products';
     this.appService.getService(url).subscribe(res => {
       this.allProducts = res;
-      console.log('this.allProducts', this.allProducts);
-
       })
     }
 
-    getProductsByCategory(category:string){
+    getProductsByCategory(category:any){
       let url = 'products/category/'+category;
       let result;
       this.appService.getService(url).subscribe(res => {
-        result= res;
+        result =res;
       })
-      return result
+
+      return result;
     }
 }
